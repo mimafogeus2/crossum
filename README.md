@@ -4,8 +4,8 @@ A crossword where the numbers are given and you fill in the math. Every row and 
 
 **Play:** https://mimafogeus2.github.io/crossum/
 
-- Endless levels that ramp from `+ −` up to `× ÷ ^ %`
-- A daily puzzle (gentle on Monday, fiendish on Sunday) with streaks and sharing
+- Easy, Medium and Hard packs of 1,000 levels each, generated from seeds, ramping from `+ −` up to `× ÷ ^ . %` and `< >`
+- Three daily puzzles (easy, medium, hard), the same for everyone, with streaks and sharing
 - Synthesized sound, light/dark themes, touch and keyboard
 
 ## Run locally
@@ -16,4 +16,4 @@ No build step. Open `index.html` in a browser, or serve the folder:
 python3 -m http.server
 ```
 
-Generator check: `node test.js`
+Generator check (all 3,000 levels): `node test.js`

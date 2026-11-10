@@ -1,18 +1,19 @@
 'use strict';
 const $ = (s) => document.querySelector(s);
 const sym = (v) => (v === '-' ? '−' : String(v));
-const KEYS = { '+': '+', '-': '-', '*': '×', x: '×', X: '×', '/': '÷', ':': '÷', '=': '=', '^': '^', '%': '%' };
-const NAMES = { '+': 'plus', '-': 'minus', '×': 'times', '÷': 'divided by', '^': 'power', '%': 'remainder', '=': 'equals' };
-const DAILY = [ // by weekday, Sunday first: [level difficulty, label]
-  [18, 'Fiendish'], [6, 'Gentle'], [8, 'Easy'], [10, 'Medium'], [12, 'Tricky'], [14, 'Hard'], [16, 'Expert'],
-];
-const TIPS = {
-  1: 'Tap a blank tile, then pick an operator. Every row and column must be a <b>true equation</b>.',
-  2: 'Where lines cross, <b>one symbol</b> has to work both ways.',
-  3: 'New: <b>×</b> — and it happens before + and −.',
-  6: 'New: <b>÷</b> — answers are always whole numbers.',
-  12: 'New: <b>^</b> power — 2^3 = 8, worked out first of all.',
-  18: 'New: <b>%</b> remainder — 7 % 3 = 1.',
+const KEYS = { '+': '+', '-': '-', '*': '×', x: '×', X: '×', '/': '÷', ':': '÷', '=': '=', '^': '^', '%': '%', '.': '.', ',': '.', '<': '<', '>': '>' };
+const NAMES = {
+  '+': 'plus', '-': 'minus', '×': 'times', '÷': 'divided by', '^': 'power', '%': 'remainder', '.': 'decimal point',
+  '=': 'equals', '<': 'less than', '>': 'greater than',
+};
+const FIRST_TIP = 'Tap a blank tile, then pick an operator. Every row and column must be <b>true</b>. Where lines cross, <b>one symbol</b> has to work both ways.';
+const OP_TIPS = { // shown on the level where an operator first appears
+  '×': 'New: <b>×</b> — it happens before + and −.',
+  '÷': 'New: <b>÷</b> — division has to come out exact.',
+  '^': 'New: <b>^</b> power — 2 ^ 3 = 8, worked out before × and +.',
+  '.': 'New: <b>.</b> decimal point — 3 . 5 is 3.5, so 7 ÷ 2 = 3 . 5',
+  '%': 'New: <b>%</b> remainder — 7 % 3 = 1.',
+  '<': 'New: <b>&lt;</b> and <b>&gt;</b> — some lines are inequalities, like 3 + 4 &lt; 9.',
 };
 const ICON_ON = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
 const ICON_OFF = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l5 6M22 9l-5 6"/></svg>';
@@ -20,18 +21,19 @@ const ICON_ERASE = '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7 6-7zM12 
 
 // ---------- storage ----------
 let store = {};
-try { store = JSON.parse(localStorage.getItem('crossum')) || {}; } catch {}
-store = { unlocked: 1, stars: {}, daily: {}, saves: {}, muted: false, seenHelp: false, ...store };
-const persist = () => { try { localStorage.setItem('crossum', JSON.stringify(store)); } catch {} };
+try { store = JSON.parse(localStorage.getItem('crossum2')) || {}; } catch {}
+store = { packs: {}, daily: {}, saves: {}, muted: false, seenHelp: false, ...store };
+for (const k in PACKS) store.packs[k] ??= { unlocked: 1, stars: {} };
+const persist = () => { try { localStorage.setItem('crossum2', JSON.stringify(store)); } catch {} };
 
 const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const dayOf = (date) => new Date(date + 'T12:00').getDay();
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 function streak() {
   const d = new Date();
-  if (!store.daily[ymd(d)]) d.setDate(d.getDate() - 1);
+  const any = () => Object.keys(store.daily[ymd(d)] || {}).length > 0; // any difficulty counts
+  if (!any()) d.setDate(d.getDate() - 1);
   let n = 0;
-  for (; store.daily[ymd(d)]; d.setDate(d.getDate() - 1)) n++;
+  for (; any(); d.setDate(d.getDate() - 1)) n++;
   return n;
 }
 
@@ -102,14 +104,28 @@ function show(id) {
 }
 
 function renderHome() {
-  $('#btn-play b').textContent = store.unlocked === 1 && !store.saves.L1 ? 'Start playing' : 'Continue';
-  $('#btn-play small').textContent = 'Level ' + store.unlocked;
-  const t = ymd(new Date()), rec = store.daily[t], st = streak();
-  $('#btn-daily small').textContent = [
-    DAILY[dayOf(t)][1],
-    rec ? `✓ solved in ${fmt(rec.t)}` : null,
-    st ? `🔥 ${st} day${st > 1 ? 's' : ''}` : null,
-  ].filter(Boolean).join('  ·  ');
+  const t = ymd(new Date()), recs = store.daily[t] || {}, st = streak();
+  $('#daily-meta').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
+    (st ? `  ·  🔥 ${st}` : '');
+  $('#daily-btns').replaceChildren(...Object.entries(PACKS).map(([k, pk]) => {
+    const b = document.createElement('button'), r = recs[k];
+    b.className = `daily-btn tier-${k}${r ? ' done' : ''}`;
+    b.innerHTML = `<b>${pk.name}</b><small>${r ? '✓ ' + fmt(r.t) : store.saves['D' + k + t] ? 'Resume' : 'Play'}</small>`;
+    b.onclick = () => start(k, null, t);
+    return b;
+  }));
+  $('#pack-btns').replaceChildren(...Object.entries(PACKS).map(([k, pk]) => {
+    const pp = store.packs[k], done = Object.keys(pp.stars).length;
+    const b = document.createElement('button');
+    b.className = `pack-btn tier-${k}`;
+    b.innerHTML = `<span class="pack-name">${pk.name}</span>
+      <span class="pack-bar"><i style="width:${(done / PACK_SIZE) * 100}%"></i></span>
+      <span class="pack-count">${done}/${PACK_SIZE}</span>`;
+    b.setAttribute('aria-label', `${pk.name} pack, ${done} of ${PACK_SIZE} solved`);
+    const next = firstUnsolved(pp);
+    b.onclick = () => (next ? start(k, next) : openLevels(k));
+    return b;
+  }));
 }
 
 // ---------- game ----------
@@ -117,21 +133,23 @@ let G = null, timer = null;
 const editable = (c) => c.op && !c.given && !G.hinted.has(c.key);
 const valOf = (c) => (c.op && !c.given ? G.fills.get(c.key) : c.val);
 
-function start(mode, n) {
-  const key = (mode === 'daily' ? 'D' : 'L') + n;
-  const lvl = mode === 'daily' ? DAILY[dayOf(n)][0] : n;
-  const p = generate(hash(key), levelConfig(lvl));
+// start(pack, n) plays pack level n; start(pack, null, date) plays that day's daily of that difficulty.
+function start(pack, n, date = null) {
+  const key = date ? 'D' + pack + date : pack + n;
+  const diff = date ? PACKS[pack].daily : packDifficulty(pack, n);
+  const p = generate(hash(key), levelConfig(diff));
   const s = store.saves[key] || {};
-  G = { mode, n, key, p, fills: new Map(s.fills), hinted: new Set(s.hinted), elapsed: s.elapsed || 0, sel: null, done: false, states: [] };
+  G = { pack, n, date, key, p, fills: new Map(s.fills), hinted: new Set(s.hinted), elapsed: s.elapsed || 0, sel: null, done: false, states: [] };
 
-  if (mode === 'daily') {
-    const d = new Date(n + 'T12:00');
-    $('#g-title').textContent = 'Daily · ' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } else $('#g-title').textContent = 'Level ' + n;
-  $('#g-sub').textContent = [...p.ops, '='].map(sym).join(' ');
-  $('#tip').innerHTML = mode === 'daily'
-    ? `${DAILY[dayOf(n)][1]} — a fresh puzzle every day, harder as the week goes on.`
-    : TIPS[n] || '';
+  $('#g-title').textContent = date ? `Daily · ${PACKS[pack].name}` : `${PACKS[pack].name} · ${n}`;
+  $('#g-sub').textContent = [...p.ops, ...p.rels].map(sym).join(' ');
+  if (date) $('#tip').textContent = `One ${PACKS[pack].name.toLowerCase()} puzzle a day — the same for everyone.`;
+  else if (n === 1) $('#tip').innerHTML = FIRST_TIP;
+  else {
+    const prev = levelConfig(packDifficulty(pack, n - 1)), had = [...prev.ops, ...prev.rels];
+    const fresh = [...p.ops, ...p.rels].filter((o) => !had.includes(o) && OP_TIPS[o]);
+    $('#tip').innerHTML = fresh.map((o) => OP_TIPS[o]).join('<br>');
+  }
 
   buildBoard();
   buildPalette();
@@ -165,9 +183,9 @@ function buildBoard() {
 function buildPalette() {
   const pal = $('#palette');
   pal.replaceChildren();
-  for (const op of [...G.p.ops, '=']) {
+  for (const op of [...G.p.ops, ...G.p.rels]) {
     const k = document.createElement('button');
-    k.className = 'key' + (op === '=' ? ' eq' : '');
+    k.className = 'key' + (G.p.rels.includes(op) ? ' eq' : '');
     k.textContent = sym(op);
     k.dataset.op = op;
     k.setAttribute('aria-label', NAMES[op]);
@@ -304,10 +322,12 @@ function win() {
   clearInterval(timer);
   delete store.saves[G.key];
   const h = G.hinted.size, stars = h === 0 ? 3 : h <= 2 ? 2 : 1;
-  if (G.mode === 'level') {
-    store.stars[G.n] = Math.max(store.stars[G.n] || 0, stars);
-    store.unlocked = Math.max(store.unlocked, G.n + 1);
-  } else store.daily[G.n] ??= { t: G.elapsed, h };
+  if (G.date) ((store.daily[G.date] ??= {})[G.pack] ??= { t: G.elapsed, h });
+  else {
+    const pp = store.packs[G.pack];
+    pp.stars[G.n] = Math.max(pp.stars[G.n] || 0, stars);
+    pp.unlocked = Math.max(pp.unlocked, Math.min(G.n + 1, PACK_SIZE));
+  }
   persist();
   $('#board').classList.add('solved');
   sfx.win();
@@ -320,15 +340,18 @@ function win() {
     $('#win-title').textContent = ['Brilliant!', 'Solved!', 'Nicely done!', 'Sharp!'][Math.floor(Math.random() * 4)];
     const st = streak();
     $('#win-stats').innerHTML = `<b>${fmt(g.elapsed)}</b> · ${h ? `${h} hint${h > 1 ? 's' : ''}` : 'no hints'}` +
-      (g.mode === 'daily' && st ? ` · 🔥 ${st}-day streak` : '');
-    $('#win-next b').textContent = g.mode === 'level' ? `Level ${g.n + 1}  →` : 'Share result';
+      (g.date && st ? ` · 🔥 ${st}-day streak` : '');
+    const last = !g.date && g.n === PACK_SIZE;
+    if (last) $('#win-title').textContent = `${PACKS[g.pack].name} pack complete!`;
+    $('#win-next').hidden = last;
+    $('#win-next b').textContent = g.date ? 'Share result' : `Level ${g.n + 1}  →`;
     $('#dlg-win').showModal();
   }, 1100);
 }
 
 async function share() {
-  const r = store.daily[G.n];
-  const text = `CrosSum daily ${G.n} (${DAILY[dayOf(G.n)][1]})\n⏱ ${fmt(r.t)}  ${r.h ? '💡'.repeat(r.h) : '⭐ no hints'}` +
+  const r = store.daily[G.date][G.pack];
+  const text = `CrosSum daily · ${G.date} · ${PACKS[G.pack].name}\n⏱ ${fmt(r.t)}  ${r.h ? '💡'.repeat(r.h) : '⭐ no hints'}` +
     (location.protocol.startsWith('http') ? '\n' + location.origin + location.pathname : '');
   try {
     if (navigator.share) await navigator.share({ text });
@@ -368,27 +391,45 @@ function confetti() {
   })(t0);
 }
 
-function openLevels() {
-  const grid = $('#level-grid');
+// 50 levels per page; opens on the page holding the first unsolved level.
+const PAGE = 50;
+const firstUnsolved = (pp) => Array.from({ length: pp.unlocked }, (_, i) => i + 1).find((n) => !pp.stars[n]);
+function openLevels(pack = store.lastPack || 'E', page) {
+  store.lastPack = pack;
+  $('#pack-tabs').replaceChildren(...Object.entries(PACKS).map(([k, pk]) => {
+    const t = document.createElement('button');
+    t.className = `tab tier-${k}`;
+    t.textContent = pk.name;
+    t.setAttribute('aria-selected', String(k === pack));
+    t.onclick = () => openLevels(k);
+    return t;
+  }));
+  const pp = store.packs[pack], grid = $('#level-grid');
+  const lastPage = Math.floor((pp.unlocked - 1) / PAGE);
+  page ??= Math.floor(((firstUnsolved(pp) || pp.unlocked) - 1) / PAGE);
+  const from = page * PAGE + 1, to = Math.min(from + PAGE - 1, PACK_SIZE);
+  $('#pg-label').textContent = `${from}–${to}`;
+  $('#pg-prev').disabled = page === 0;
+  $('#pg-next').disabled = page >= lastPage;
+  $('#pg-prev').onclick = () => openLevels(pack, page - 1);
+  $('#pg-next').onclick = () => openLevels(pack, page + 1);
+  grid.className = `level-grid tier-${pack}`;
   grid.replaceChildren();
-  const max = Math.max(30, Math.ceil((store.unlocked + 6) / 10) * 10);
-  for (let n = 1; n <= max; n++) {
-    const b = document.createElement('button'), s = store.stars[n] || 0;
-    b.className = 'lvl' + (n === store.unlocked ? ' current' : '');
-    b.disabled = n > store.unlocked;
+  for (let n = from; n <= to; n++) {
+    const b = document.createElement('button'), s = pp.stars[n] || 0;
+    b.className = 'lvl' + (n === pp.unlocked && !s ? ' current' : '');
+    b.disabled = n > pp.unlocked;
     b.innerHTML = `<span>${n}</span><small>${b.disabled ? '🔒' : s ? '★'.repeat(s) + '☆'.repeat(3 - s) : ''}</small>`;
     b.setAttribute('aria-label', `Level ${n}${b.disabled ? ', locked' : s ? `, ${s} stars` : ''}`);
-    b.onclick = () => { $('#dlg-levels').close(); start('level', n); };
+    b.onclick = () => { $('#dlg-levels').close(); start(pack, n); };
     grid.append(b);
   }
-  $('#dlg-levels').showModal();
+  if (!$('#dlg-levels').open) $('#dlg-levels').showModal();
   grid.querySelector('.current')?.scrollIntoView({ block: 'center' });
 }
 
 // ---------- wiring ----------
-$('#btn-play').onclick = () => start('level', store.unlocked);
-$('#btn-daily').onclick = () => start('daily', ymd(new Date()));
-$('#btn-levels').onclick = openLevels;
+$('#btn-levels').onclick = () => openLevels();
 $('#btn-help').onclick = () => $('#dlg-help').showModal();
 $('#btn-back').onclick = () => { if (G && !G.done) saveGame(); clearInterval(timer); show('home'); };
 // Tiles get small on big boards, so a tap anywhere near a blank selects the nearest one.
@@ -410,7 +451,7 @@ $('#btn-hint').onclick = hint;
 $('#btn-reset').onclick = reset;
 $('#win-home').onclick = () => { $('#dlg-win').close(); show('home'); };
 $('#win-next').onclick = () => {
-  if (G.mode === 'level') { $('#dlg-win').close(); start('level', G.n + 1); } else share();
+  if (G.date) share(); else { $('#dlg-win').close(); start(G.pack, G.n + 1); }
 };
 $('#dlg-help').addEventListener('close', () => { store.seenHelp = true; persist(); });
 for (const b of document.querySelectorAll('.js-sound')) b.onclick = () => { store.muted = !store.muted; persist(); syncSound(); sfx.tap(); };
@@ -419,7 +460,7 @@ document.addEventListener('keydown', (e) => {
   if (!G || $('#game').hidden || document.querySelector('dialog[open]') || e.metaKey || e.ctrlKey || e.altKey) return;
   const op = KEYS[e.key];
   const arrows = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
-  if (op && (op === '=' || G.p.ops.includes(op))) {
+  if (op && [...G.p.ops, ...G.p.rels].includes(op)) {
     place(op);
     const k = $(`.key[data-op="${op}"]`);
     if (k) { k.classList.add('press'); setTimeout(() => k.classList.remove('press'), 100); }

@@ -21,8 +21,10 @@
   <h1 class="wordmark">Cros<span>Sum</span></h1>
   <p class="tagline">The numbers are given. The math is yours.</p>
   <nav class="menu">
-    <button id="btn-play" class="btn primary"><b></b><small></small></button>
-    <button id="btn-daily" class="btn daily"><b>Daily puzzle</b><small></small></button>
+    <div class="block-head"><h2>Daily</h2><span id="daily-meta"></span></div>
+    <div id="daily-btns" class="trio"></div>
+    <div class="block-head"><h2>Level packs</h2></div>
+    <div id="pack-btns" class="packs"></div>
     <div class="row">
       <button id="btn-levels" class="btn ghost"><b>Levels</b></button>
       <button id="btn-help" class="btn ghost"><b>How to play</b></button>
@@ -56,7 +58,13 @@
 
 <dialog id="dlg-levels">
   <h2>Levels</h2>
+  <div id="pack-tabs" class="tabs" role="tablist"></div>
   <div id="level-grid" class="level-grid"></div>
+  <div class="pager">
+    <button id="pg-prev" class="icon" aria-label="Previous levels"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span id="pg-label"></span>
+    <button id="pg-next" class="icon" aria-label="Next levels"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
   <form method="dialog"><button class="btn ghost center"><b>Close</b></button></form>
 </dialog>
 
@@ -66,10 +74,10 @@
   <ol class="rules">
     <li>Fill every blank tile with an operator so <b>each row and column is a true equation</b>.</li>
     <li>Tiles where lines cross are <b>shared</b> — one symbol has to work both ways.</li>
-    <li>Usual math order: <b>×  ÷</b> before <b>+  −</b>. Division must come out whole.</li>
-    <li>Later levels add <b>^</b> (power, first of all) and <b>%</b> (remainder).</li>
+    <li>Usual math order: <b>×  ÷</b> before <b>+  −</b>. Division must come out exact.</li>
+    <li>Harder levels add <b>^</b> power, <b>.</b> decimal point (3 . 5 is 3.5), <b>%</b> remainder, and <b>&lt;  &gt;</b> for lines that are inequalities.</li>
   </ol>
-  <p class="muted small">Keyboard: <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> <kbd>=</kbd> <kbd>^</kbd> <kbd>%</kbd>, arrows to move, <kbd>⌫</kbd> to clear.</p>
+  <p class="muted small">Keyboard: <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> <kbd>=</kbd> <kbd>^</kbd> <kbd>.</kbd> <kbd>%</kbd> <kbd>&lt;</kbd> <kbd>&gt;</kbd>, arrows to move, <kbd>⌫</kbd> to clear.</p>
   <form method="dialog"><button class="btn primary center"><b>Got it</b></button></form>
 </dialog>
 

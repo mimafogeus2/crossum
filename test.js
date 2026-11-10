@@ -1,6 +1,6 @@
-// node test.js — checks the generator produces valid, well-formed puzzles.
+// node test.js — checks the evaluator and that the generator produces valid, well-formed puzzles.
 const assert = require('assert');
-const { checkEquation, evalExpr, levelConfig, generate, hash } = require('./gen.js');
+const { checkEquation, evalExpr, levelConfig, generate, hash, PACKS, PACK_SIZE, packDifficulty } = require('./gen.js');
 
 assert(checkEquation([2, '+', 3, '×', 4, '=', 14]));
 assert(checkEquation([12, '=', 3, '×', 4]));
@@ -8,17 +8,32 @@ assert(!checkEquation([2, '+', 3, '=', 4, '=', 5]));
 assert(!checkEquation([7, '÷', 2, '=', 3]));
 assert.strictEqual(evalExpr([2, 3, 2], ['^', '×']), 16);
 assert.strictEqual(evalExpr([17, 5, 1], ['%', '+']), 3);
+// decimal point
+assert(checkEquation([7, '÷', 2, '=', 3, '.', 5]));
+assert(checkEquation([1, '.', 5, '×', 4, '=', 6]));
+assert(checkEquation([0, '.', 1, '+', 0, '.', 2, '=', 0, '.', 3])); // no float drift
+assert(checkEquation([3, '.', 25, '×', 4, '=', 13]));
+assert(!checkEquation([1, '.', 2, '.', 3, '=', 1])); // can't chain
+assert(!checkEquation([1, '÷', 3, '=', 0, '.', 33])); // 1/3 doesn't terminate
+// inequalities
+assert(checkEquation([3, '+', 4, '<', 8]));
+assert(checkEquation([9, '>', 2, '×', 4]));
+assert(!checkEquation([3, '+', 5, '<', 8]));
+assert(!checkEquation([3, '<', 4, '=', 4])); // exactly one relation
 
-const keys = [...Array(40)].map((_, i) => 'L' + (i + 1)).concat(['D2026-11-10', 'D2026-11-15', 'D2027-01-01']);
-const t0 = Date.now();
-for (const k of keys) {
-  const n = k[0] === 'L' ? +k.slice(1) : 14;
-  const cfg = levelConfig(n), p = generate(hash(k), cfg);
+const keys = [];
+for (const k of Object.keys(PACKS)) for (let n = 1; n <= PACK_SIZE; n++) keys.push([k + n, packDifficulty(k, n)]);
+for (const k of Object.keys(PACKS)) keys.push(['D' + k + '2026-11-10', PACKS[k].daily]);
+
+const t0 = Date.now(), seen = new Set();
+for (const [k, d] of keys) {
+  const cfg = levelConfig(d), p = generate(hash(k), cfg);
   const at = new Map(p.cells.map((c) => [c.key, c]));
-  // each equation is solved by the reference solution
   for (const eq of p.eqs) assert(checkEquation(eq.map((i) => p.cells[i].val)), k + ' bad eq');
-  // crossings are blank operators
-  for (const c of p.cells) if (c.eqs.length > 1) assert(c.op && !c.given, k + ' crossing');
+  for (const c of p.cells) {
+    if (c.eqs.length > 1) assert(c.op && !c.given, k + ' crossing');
+    if (c.op) seen.add(c.val);
+  }
   // every maximal run of >=2 cells is exactly one equation (no accidental adjacency)
   const runs = new Set(p.eqs.map((e) => e.join()));
   for (const [dr, dc] of [[0, 1], [1, 0]]) {
@@ -30,7 +45,10 @@ for (const k of keys) {
     }
   }
   assert(p.rows <= cfg.size && p.cols <= cfg.size, k + ' too big');
-  const blanks = p.cells.filter((c) => c.op && !c.given).length;
-  console.log(k.padEnd(12), `${p.eqs.length}/${cfg.eqs} eqs`, `${p.cols}x${p.rows}`, `${blanks} blanks`);
+  if (/^([EMH](1|30)$|D)/.test(k)) {
+    const blanks = p.cells.filter((c) => c.op && !c.given).length;
+    console.log(k.padEnd(14), 'difficulty', String(d).padEnd(3), `${p.eqs.length} eqs`, `${p.cols}x${p.rows}`, `${blanks} blanks`, [...p.ops, ...p.rels].join(' '));
+  }
 }
-console.log('ok', Date.now() - t0, 'ms');
+for (const op of ['.', '<', '>', '%', '^']) assert(seen.has(op), 'never generated ' + op);
+console.log('ok', keys.length, 'puzzles', Date.now() - t0, 'ms');
