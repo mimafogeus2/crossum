@@ -34,16 +34,25 @@
 
 <section id="game" class="screen" hidden>
   <header class="bar">
-    <button id="btn-back" class="icon" aria-label="Back to menu">
-      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
-    </button>
+    <div class="bar-start">
+      <button id="btn-back" class="icon" aria-label="Back to menu">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button id="btn-pause" class="icon" aria-label="Pause"></button>
+    </div>
     <div class="title"><b id="g-title"></b><small id="g-sub"></small></div>
     <div class="bar-end">
       <span id="timer" aria-label="Time">0:00</span>
       <button class="icon js-sound" aria-label="Sound"></button>
     </div>
   </header>
-  <div class="board-wrap"><div id="board" class="board" role="grid" aria-label="Puzzle"></div></div>
+  <div class="board-wrap">
+    <div id="board" class="board" role="grid" aria-label="Puzzle"></div>
+    <div id="pause-cover" class="pause-cover" hidden>
+      <b>Paused</b>
+      <button id="btn-resume" class="btn primary center"><b>Resume</b></button>
+    </div>
+  </div>
   <p id="tip" class="tip"></p>
   <div id="palette" class="palette" aria-label="Operators"></div>
   <div class="tools">
@@ -51,7 +60,7 @@
       <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Hint
     </button>
     <button id="btn-reset" class="chip">
-      <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/></svg>Reset
+      <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/></svg>Restart
     </button>
   </div>
 </section>
@@ -77,7 +86,7 @@
     <li>Usual math order: <b>×  ÷</b> before <b>+  −</b>. Division must come out exact.</li>
     <li>Harder levels add <b>^</b> power, <b>.</b> decimal point (3 . 5 is 3.5), <b>%</b> remainder, and <b>&lt;  &gt;</b> for lines that are inequalities.</li>
   </ol>
-  <p class="muted small">Keyboard: <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> <kbd>=</kbd> <kbd>^</kbd> <kbd>.</kbd> <kbd>%</kbd> <kbd>&lt;</kbd> <kbd>&gt;</kbd>, arrows to move, <kbd>⌫</kbd> to clear.</p>
+  <p class="muted small">Keyboard: <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> <kbd>=</kbd> <kbd>^</kbd> <kbd>.</kbd> <kbd>%</kbd> <kbd>&lt;</kbd> <kbd>&gt;</kbd>, arrows to move, <kbd>⌫</kbd> to clear, <kbd>P</kbd> to pause.</p>
   <form method="dialog"><button class="btn primary center"><b>Got it</b></button></form>
 </dialog>
 

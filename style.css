@@ -78,6 +78,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .title { display: flex; flex-direction: column; align-items: center; }
 .title b { font-size: 20px; font-weight: 700; }
 .title small { color: var(--muted); font-size: 14px; letter-spacing: .08em; }
+.bar-start { display: flex; gap: 2px; }
 .bar-end { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
 #timer { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--muted); min-width: 3.5ch; text-align: right; }
 
@@ -255,3 +256,12 @@ kbd { font: inherit; font-size: 13px; padding: 1px 6px; border-radius: 6px; back
 .pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pager .icon:disabled { opacity: .3; cursor: default; }
 .level-grid .lvl span { font-size: clamp(14px, 4.4vw, 20px); }
+
+/* paused: board and controls hidden (layout kept), cover shown */
+.board-wrap { position: relative; }
+#game.paused .board, #game.paused .palette, #game.paused .tools, #game.paused .tip { visibility: hidden; }
+.pause-cover {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+}
+.pause-cover > b { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+.pause-cover .btn { width: auto; padding: 14px 40px; }

@@ -17,6 +17,8 @@ const OP_TIPS = { // shown on the level where an operator first appears
 };
 const ICON_ON = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
 const ICON_OFF = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9l5 6M22 9l-5 6"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg>';
 const ICON_ERASE = '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7 6-7zM12 9l5 6M17 9l-5 6"/></svg>';
 
 // ---------- storage ----------
@@ -139,7 +141,8 @@ function start(pack, n, date = null) {
   const diff = date ? PACKS[pack].daily : packDifficulty(pack, n);
   const p = generate(hash(key), levelConfig(diff));
   const s = store.saves[key] || {};
-  G = { pack, n, date, key, p, fills: new Map(s.fills), hinted: new Set(s.hinted), elapsed: s.elapsed || 0, sel: null, done: false, states: [] };
+  G = { pack, n, date, key, p, fills: new Map(s.fills), hinted: new Set(s.hinted), elapsed: s.elapsed || 0, sel: null, done: false, paused: false, states: [] };
+  setPaused(false);
 
   $('#g-title').textContent = date ? `Daily · ${PACKS[pack].name}` : `${PACKS[pack].name} · ${n}`;
   $('#g-sub').textContent = [...p.ops, ...p.rels].map(sym).join(' ');
@@ -248,8 +251,22 @@ function nextEmpty(from) {
   return null;
 }
 
+const playing = () => G && !G.done && !G.paused;
+
+// Pause stops the clock and hides the board, so it can't be studied for free.
+function setPaused(v) {
+  if (!G || (v && G.done)) return;
+  const changed = G.paused !== v;
+  G.paused = v;
+  $('#game').classList.toggle('paused', v);
+  $('#pause-cover').hidden = !v;
+  $('#btn-pause').innerHTML = v ? ICON_PLAY : ICON_PAUSE;
+  $('#btn-pause').setAttribute('aria-label', v ? 'Resume' : 'Pause');
+  if (changed && v) { saveGame(); sfx.erase(); } else if (changed) sfx.tap();
+}
+
 function place(op) {
-  if (!G || G.done) return;
+  if (!playing()) return;
   if (!G.sel || !editable(G.sel)) G.sel = nextEmpty(null);
   const cell = G.sel;
   if (!cell) return;
@@ -268,7 +285,7 @@ function place(op) {
 
 function move(dr, dc) {
   const s = G.sel;
-  if (!s) return;
+  if (!s || !playing()) return;
   let best = null, bs = Infinity;
   for (const c of G.p.cells) {
     if (!editable(c) || c === s) continue;
@@ -281,7 +298,7 @@ function move(dr, dc) {
 }
 
 function hint() {
-  if (!G || G.done) return;
+  if (!playing()) return;
   const wrong = G.p.cells.filter((c) => editable(c) && G.fills.get(c.key) !== c.val);
   const c = wrong.includes(G.sel) ? G.sel : wrong[Math.floor(Math.random() * wrong.length)];
   if (!c) return;
@@ -295,8 +312,8 @@ function hint() {
 }
 
 function reset() {
-  if (!G || G.done || !G.fills.size) return;
-  if (!confirm('Clear all the tiles you placed?')) return;
+  if (!playing() || G.fills.size === G.hinted.size) return;
+  if (!confirm('Restart this level? Your tiles are cleared; the clock keeps running.')) return;
   for (const k of [...G.fills.keys()]) if (!G.hinted.has(k)) G.fills.delete(k);
   sfx.erase();
   G.sel = nextEmpty(null);
@@ -311,7 +328,7 @@ function saveGame() {
 }
 
 function tick() {
-  if (!G || G.done || document.hidden || $('#game').hidden || document.querySelector('dialog[open]')) return;
+  if (!G || G.done || G.paused || document.hidden || $('#game').hidden || document.querySelector('dialog[open]')) return;
   G.elapsed++;
   $('#timer').textContent = fmt(G.elapsed);
   if (G.elapsed % 5 === 0) saveGame();
@@ -434,7 +451,7 @@ $('#btn-help').onclick = () => $('#dlg-help').showModal();
 $('#btn-back').onclick = () => { if (G && !G.done) saveGame(); clearInterval(timer); show('home'); };
 // Tiles get small on big boards, so a tap anywhere near a blank selects the nearest one.
 $('.board-wrap').addEventListener('click', (e) => {
-  if (!G || G.done) return;
+  if (!playing()) return;
   const direct = G.p.cells.find((c) => c.el === e.target.closest('.cell'));
   let best = direct && editable(direct) ? direct : null, bd = best ? 0 : Infinity;
   if (!best && e.detail) {
@@ -448,6 +465,8 @@ $('.board-wrap').addEventListener('click', (e) => {
   if (best && bd < 1.6 && best !== G.sel) { G.sel = best; sfx.tap(); refresh(false); }
 });
 $('#btn-hint').onclick = hint;
+$('#btn-pause').onclick = () => setPaused(!G.paused);
+$('#btn-resume').onclick = () => setPaused(false);
 $('#btn-reset').onclick = reset;
 $('#win-home').onclick = () => { $('#dlg-win').close(); show('home'); };
 $('#win-next').onclick = () => {
@@ -458,6 +477,8 @@ for (const b of document.querySelectorAll('.js-sound')) b.onclick = () => { stor
 
 document.addEventListener('keydown', (e) => {
   if (!G || $('#game').hidden || document.querySelector('dialog[open]') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'p' || e.key === 'P') { setPaused(!G.paused); return e.preventDefault(); }
+  if (G.paused && e.key !== 'Escape') return;
   const op = KEYS[e.key];
   const arrows = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
   if (op && [...G.p.ops, ...G.p.rels].includes(op)) {
