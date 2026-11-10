@@ -157,6 +157,7 @@ function start(pack, n, date = null) {
   buildBoard();
   buildPalette();
   show('game');
+  balancePalette();
   G.sel = nextEmpty(null);
   refresh(false);
   $('#timer').textContent = fmt(G.elapsed);
@@ -182,6 +183,24 @@ function buildBoard() {
   }
   G.states = G.p.eqs.map(() => 'open');
 }
+
+// Wrap keys into evenly filled rows (7 keys, room for 6 -> 4 + 3, not 6 + 1)
+// by capping the palette width at the balanced row length.
+function balancePalette() {
+  const pal = $('#palette'), n = pal.children.length;
+  if (!n || $('#game').hidden) return;
+  pal.style.maxWidth = '';
+  const cs = getComputedStyle(pal), host = getComputedStyle(pal.parentElement);
+  const key = pal.children[0].getBoundingClientRect().width, gap = parseFloat(cs.columnGap) || 0;
+  const avail = Math.min(
+    pal.parentElement.clientWidth - parseFloat(host.paddingLeft) - parseFloat(host.paddingRight),
+    parseFloat(cs.maxWidth) || Infinity,
+  );
+  const fit = Math.max(1, Math.floor((avail + gap) / (key + gap)));
+  const perRow = Math.ceil(n / Math.ceil(n / fit));
+  pal.style.maxWidth = perRow * key + (perRow - 1) * gap + 1 + 'px'; // +1 absorbs subpixel rounding
+}
+addEventListener('resize', balancePalette);
 
 function buildPalette() {
   const pal = $('#palette');
