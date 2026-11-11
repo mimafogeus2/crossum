@@ -55,6 +55,14 @@ function nextInEquation(p, cell, eq, blank) {
   return null;
 }
 
+// Saves outlive generator changes. A save with tiles this puzzle doesn't have, or hints that aren't
+// this puzzle's answers, is from an older puzzle; its hints would lock wrong operators in place.
+function saveFits(p, s) {
+  const blanks = new Map(p.cells.filter((c) => c.op && !c.given).map((c) => [c.key, c.val]));
+  const fills = new Map(s.fills);
+  return [...fills.keys()].every((k) => blanks.has(k)) && (s.hinted || []).every((k) => fills.get(k) === blanks.get(k));
+}
+
 function rng(seed) {
   let a = seed >>> 0;
   return () => {
@@ -233,4 +241,4 @@ function tryGenerate(seed, cfg) {
   };
 }
 
-if (typeof module === 'object') module.exports = { evalExpr, checkEquation, nextInEquation, rng, hash, levelConfig, generate, PACKS, PACK_SIZE, packDifficulty };
+if (typeof module === 'object') module.exports = { evalExpr, checkEquation, nextInEquation, saveFits, rng, hash, levelConfig, generate, PACKS, PACK_SIZE, packDifficulty };

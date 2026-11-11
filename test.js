@@ -1,6 +1,6 @@
 // node test.js — checks the evaluator and that the generator produces valid, well-formed puzzles.
 const assert = require('assert');
-const { checkEquation, evalExpr, nextInEquation, levelConfig, generate, hash, PACKS, PACK_SIZE, packDifficulty } = require('./gen.js');
+const { checkEquation, evalExpr, nextInEquation, saveFits, levelConfig, generate, hash, PACKS, PACK_SIZE, packDifficulty } = require('./gen.js');
 
 assert(checkEquation([2, '+', 3, '×', 4, '=', 14]));
 assert(checkEquation([12, '=', 3, '×', 4]));
@@ -34,6 +34,16 @@ assert(!checkEquation([3, '<', 4, '=', 4])); // exactly one relation
   assert.deepStrictEqual(next(1, null, [7]), [7, 1]); // horizontal is full: only vertical is left
   assert.deepStrictEqual(next(3, 0, [1, 7]), [1, 0]); // wraps within the equation
   assert.strictEqual(next(3, 0, [7]), null); // equation done: caller picks elsewhere
+}
+
+// saves: a blank tile at 0,1 whose answer is '-'
+{
+  const p = { cells: [{ key: '0,1', op: true, given: false, val: '-' }, { key: '0,3', op: true, given: true, val: '=' }] };
+  assert(saveFits(p, {}));
+  assert(saveFits(p, { fills: [['0,1', '+']], hinted: [] })); // a wrong guess is still the player's to fix
+  assert(saveFits(p, { fills: [['0,1', '-']], hinted: ['0,1'] }));
+  assert(!saveFits(p, { fills: [['0,1', '.']], hinted: ['0,1'] })); // hint from an older puzzle
+  assert(!saveFits(p, { fills: [['2,2', '+']], hinted: [] })); // tile that no longer exists
 }
 
 const keys = [];

@@ -140,7 +140,7 @@ function start(pack, n, date = null) {
   const key = date ? 'D' + pack + date : pack + n;
   const diff = date ? PACKS[pack].daily : packDifficulty(pack, n);
   const p = generate(hash(key), levelConfig(diff));
-  const s = store.saves[key] || {};
+  const s = store.saves[key] && saveFits(p, store.saves[key]) ? store.saves[key] : {};
   G = { pack, n, date, key, p, fills: new Map(s.fills), hinted: new Set(s.hinted), elapsed: s.elapsed || 0, sel: null, done: false, paused: false, states: [] };
   setPaused(false);
 
