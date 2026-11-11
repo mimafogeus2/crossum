@@ -293,7 +293,9 @@ function place(op) {
     G.fills.set(cell.key, op);
     sfx.place();
     flash(cell.el, 'pop');
-    G.sel = nextEmpty(cell) || cell;
+    const next = nextInEquation(G.p, cell, G.eq, (c) => editable(c) && !G.fills.has(c.key));
+    G.eq = next ? next.eq : null;
+    G.sel = next ? next.cell : nextEmpty(cell) || cell;
   } else {
     if (!G.fills.delete(cell.key)) return;
     sfx.erase();
@@ -313,7 +315,7 @@ function move(dr, dc) {
     const score = along + 2 * (Math.abs(c.r - s.r) * Math.abs(dc) + Math.abs(c.c - s.c) * Math.abs(dr));
     if (score < bs) { bs = score; best = c; }
   }
-  if (best) { G.sel = best; sfx.tap(); refresh(false); }
+  if (best) { G.sel = best; G.eq = null; sfx.tap(); refresh(false); }
 }
 
 function hint() {
@@ -326,6 +328,7 @@ function hint() {
   sfx.hint();
   flash(c.el, 'pop');
   G.sel = nextEmpty(c);
+  G.eq = null;
   refresh(true);
   saveGame();
 }
@@ -336,6 +339,7 @@ function reset() {
   for (const k of [...G.fills.keys()]) if (!G.hinted.has(k)) G.fills.delete(k);
   sfx.erase();
   G.sel = nextEmpty(null);
+  G.eq = null;
   refresh(false);
   saveGame();
 }
@@ -481,7 +485,7 @@ $('.board-wrap').addEventListener('click', (e) => {
       if (d < bd) { bd = d; best = c; }
     }
   }
-  if (best && bd < 1.6 && best !== G.sel) { G.sel = best; sfx.tap(); refresh(false); }
+  if (best && bd < 1.6 && best !== G.sel) { G.sel = best; G.eq = null; sfx.tap(); refresh(false); }
 });
 $('#btn-hint').onclick = hint;
 $('#btn-pause').onclick = () => setPaused(!G.paused);

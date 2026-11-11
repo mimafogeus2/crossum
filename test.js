@@ -1,6 +1,6 @@
 // node test.js — checks the evaluator and that the generator produces valid, well-formed puzzles.
 const assert = require('assert');
-const { checkEquation, evalExpr, levelConfig, generate, hash, PACKS, PACK_SIZE, packDifficulty } = require('./gen.js');
+const { checkEquation, evalExpr, nextInEquation, levelConfig, generate, hash, PACKS, PACK_SIZE, packDifficulty } = require('./gen.js');
 
 assert(checkEquation([2, '+', 3, '×', 4, '=', 14]));
 assert(checkEquation([12, '=', 3, '×', 4]));
@@ -20,6 +20,21 @@ assert(checkEquation([3, '+', 4, '<', 8]));
 assert(checkEquation([9, '>', 2, '×', 4]));
 assert(!checkEquation([3, '+', 5, '<', 8]));
 assert(!checkEquation([3, '<', 4, '=', 4])); // exactly one relation
+
+// cursor: tile 1 is where horizontal eq 0 and vertical eq 1 cross; tiles 3 and 7 are the other blanks
+{
+  const cells = Array.from({ length: 9 }, (_, i) => ({ i, eqs: i === 1 ? [0, 1] : i < 5 ? [0] : [1] }));
+  const p = { cells, eqs: [[0, 1, 2, 3, 4], [5, 1, 6, 7, 8]] };
+  const next = (i, eq, blanks) => {
+    const n = nextInEquation(p, cells[i], eq, (c) => blanks.includes(c.i));
+    return n && [n.cell.i, n.eq];
+  };
+  assert.deepStrictEqual(next(1, null, [3, 7]), [3, 0]); // first fill after selecting a crossing: horizontal
+  assert.deepStrictEqual(next(1, 1, [3, 7]), [7, 1]); // mid-equation: stays vertical through the crossing
+  assert.deepStrictEqual(next(1, null, [7]), [7, 1]); // horizontal is full: only vertical is left
+  assert.deepStrictEqual(next(3, 0, [1, 7]), [1, 0]); // wraps within the equation
+  assert.strictEqual(next(3, 0, [7]), null); // equation done: caller picks elsewhere
+}
 
 const keys = [];
 for (const k of Object.keys(PACKS)) for (let n = 1; n <= PACK_SIZE; n++) keys.push([k + n, packDifficulty(k, n)]);
