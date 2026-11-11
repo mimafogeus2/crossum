@@ -42,6 +42,19 @@ function checkEquation(cells) {
   return Number.isFinite(l) && Number.isFinite(r) && REL[rels[0]](l, r);
 }
 
+// Where the cursor goes after filling cell: the next blank along the equation in progress (eq),
+// wrapping within it. Without one, the cell's own equations in order, horizontal first (cell.eqs is [h, v]).
+function nextInEquation(p, cell, eq, blank) {
+  for (const e of cell.eqs.includes(eq) ? [eq, ...cell.eqs] : cell.eqs) {
+    const line = p.eqs[e], at = line.indexOf(cell.i);
+    for (let k = 1; k < line.length; k++) {
+      const c = p.cells[line[(at + k) % line.length]];
+      if (blank(c)) return { cell: c, eq: e };
+    }
+  }
+  return null;
+}
+
 function rng(seed) {
   let a = seed >>> 0;
   return () => {
@@ -216,4 +229,4 @@ function tryGenerate(seed, cfg) {
   };
 }
 
-if (typeof module === 'object') module.exports = { evalExpr, checkEquation, rng, hash, levelConfig, generate, PACKS, PACK_SIZE, packDifficulty };
+if (typeof module === 'object') module.exports = { evalExpr, checkEquation, nextInEquation, rng, hash, levelConfig, generate, PACKS, PACK_SIZE, packDifficulty };
