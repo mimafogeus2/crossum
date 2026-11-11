@@ -44,7 +44,11 @@ const t0 = Date.now(), seen = new Set();
 for (const [k, d] of keys) {
   const cfg = levelConfig(d), p = generate(hash(k), cfg);
   const at = new Map(p.cells.map((c) => [c.key, c]));
-  for (const eq of p.eqs) assert(checkEquation(eq.map((i) => p.cells[i].val)), k + ' bad eq');
+  for (const eq of p.eqs) {
+    const vals = eq.map((i) => p.cells[i].val);
+    assert(checkEquation(vals), k + ' bad eq');
+    vals.forEach((v, i) => assert(vals[i - 1] !== '.' || v < 10 || v === 25 || v === 75, k + ' awkward decimal ' + vals.join(' ')));
+  }
   for (const c of p.cells) {
     if (c.eqs.length > 1) assert(c.op && !c.given, k + ' crossing');
     if (c.op) seen.add(c.val);

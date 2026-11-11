@@ -17,14 +17,14 @@ const REL = { '=': (l, r) => Math.abs(l - r) < 1e-9, '<': (l, r) => l < r - 1e-9
 const FLIP = { '=': '=', '<': '>', '>': '<' };
 
 // Standard precedence, left-to-right within a level. NaN on any invalid step.
-// strict: every intermediate must be a whole number (generator, before decimals are introduced).
-function evalExpr(nums, ops, strict = false) {
+// ok: optional test every intermediate must pass (generator only; players may enter any valid math).
+function evalExpr(nums, ops, ok = null) {
   const n = nums.slice(), o = ops.slice();
   for (const p of [4, 3, 2, 1]) {
     for (let i = 0; i < o.length; ) {
       if (PREC[o[i]] !== p) { i++; continue; }
       const v = OPS[o[i]](n[i], n[i + 1]);
-      if (!Number.isFinite(v) || Math.abs(v) > 1e9 || (strict && !Number.isInteger(v))) return NaN;
+      if (!Number.isFinite(v) || Math.abs(v) > 1e9 || (ok && !ok(v))) return NaN;
       n.splice(i, 2, v);
       o.splice(i, 1);
     }
@@ -114,11 +114,15 @@ function numCells(x) {
   return [Math.floor(c / 100), '.', f % 10 ? f : f / 10];
 }
 
+// Generated decimals stay friendly: tenths and quarters (3.4, 2.25), never 11.46.
+const isNice = (x) => [4, 10].some((d) => Math.abs(x * d - Math.round(x * d)) < 1e-6);
+
 function genEquation(rand, cfg, terms) {
+  const dec = cfg.ops.includes('.');
   for (let t = 0; t < 60; t++) {
     const nums = [], ops = [];
     for (let i = 0; i < terms; i++) nums.push(int(rand, 1, cfg.maxNum));
-    for (let i = 0; i < terms - 1; i++) ops.push(pick(rand, cfg.ops));
+    for (let i = 0; i < terms - 1; i++) ops.push(dec && rand() < 0.02 ? '.' : pick(rand, cfg.ops)); // boost offsets the '.' lines isNice rejects
     // nudge operands so ÷, ^ and % produce sensible numbers
     ops.forEach((op, i) => {
       if (op === '÷') { nums[i + 1] = int(rand, 2, 9); nums[i] = nums[i + 1] * int(rand, 1, 9); }
@@ -127,8 +131,8 @@ function genEquation(rand, cfg, terms) {
       if (op === '.') nums[i + 1] = int(rand, 1, 9);
     });
     if (ops.every((o) => o === '.')) continue; // "3 . 5 = 3 . 5" is no puzzle
-    const dec = cfg.ops.includes('.');
-    const v = evalExpr(nums, ops, !dec);
+    if (ops.some((o, i) => o === '.' && nums[i + 1] % 10 === 0)) continue; // no "3 . 50"
+    const v = evalExpr(nums, ops, dec ? isNice : Number.isInteger);
     if (!(v >= 0) || v > cfg.maxResult) continue;
     let rel = '=', rhs = v;
     if (cfg.ineq && rand() < cfg.ineq) {
